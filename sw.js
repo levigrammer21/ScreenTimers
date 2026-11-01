@@ -1,6 +1,6 @@
 /* App shell only: never cache authenticated HTTP responses or Firestore traffic. */
-const CACHE='screen-timers-1.0.0';
-const SHELL=['./','./index.html','./styles.css','./app.js','./domain.js','./config.js','./firebase-client.js','./firebase-sdk.js','./push-sdk.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='screen-timers-1.1.0';
+const SHELL=['./','./index.html','./styles.css','./app.js','./domain.js','./config.js','./firebase-client.js','./storage.js','./app-bundle.js?v=1.1.0','./push-sdk.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 // FCM handles background notification payloads, including click deep links.
 importScripts('./push-sdk.js');
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));

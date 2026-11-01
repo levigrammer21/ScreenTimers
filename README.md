@@ -1,8 +1,8 @@
-# Screen Timers · 1.0.0
+# Screen Timers · 1.1.0
 
 A private, mobile-first family PWA for two parents, Reid, and Evan. The frontend is ready to upload to **GitHub Pages from the repository root**. The complete Firebase backend, security rules, tests, and deployment instructions are included.
 
-**Start with [SETUP.md](SETUP.md).** The existing `screen-timers` Firebase project is already configured in `config.js`. You still need to create your two parent sign-ins, authorize their UIDs, and deploy the backend. Uploading the web files alone does not deploy Firebase Functions.
+**Start with [SETUP.md](SETUP.md).** The existing `screen-timers` Firebase project is already configured in `config.js`. Enable Google (and optionally Email/Password) in Firebase Authentication and deploy the updated backend. You and your partner then create your own accounts and connect using a family code in the app. No manual UID setup is needed. Uploading the web files alone does not deploy Firebase Functions.
 
 ## Included
 
@@ -14,13 +14,13 @@ A private, mobile-first family PWA for two parents, Reid, and Evan. The frontend
 - Installable PWA with icons, offline app shell, last-known balances, visible stale status, and online-only mutations.
 - Optional per-device FCM push with event preferences and in-app update notices.
 - Firestore transactions, request idempotency, scheduled expiry tasks, and a one-minute reconciliation safety net.
-- Root-level source, prebuilt Firebase SDK bundles, lockfile, deployment configuration, and executable tests.
+- Root-level source, a prebuilt app bundle and push SDK, lockfile, deployment configuration, and executable tests.
 
 The ZIP extracts into **one `screen-timers` folder**, with all supplied code at that folder’s root. No frontend build is required to publish the included static files. Backend code lives at the same root, as requested. Node dependencies are installed only when deploying or developing.
 
 ## Everyday use
 
-1. Sign in as either authorized parent. Both children begin at zero with no grades (1×).
+1. Sign in with Google or create an email account. The first parent creates the family; the second joins using the family code. Both children begin at zero with no grades (1×).
 2. Tap **Add earned time**. Pick 5/15/30/60 minutes or enter hours/minutes, optionally give a reason, review the grade-adjusted credit, and confirm.
 3. Start the timer when screen time begins. Pause freezes the bank; Stop ends the session and preserves unused time. Timers consume time even with both apps closed.
 4. Use **Adjust time** for flat additions or deductions. These bypass grades. Deductions require review and floor at zero.
@@ -38,7 +38,7 @@ Bounds: up to 24 grades per child; an earned base award up to 7 days; flat corre
 
 ## How synchronization works
 
-Every persistent change calls an authenticated backend. The backend validates the two-parent allowlist, settles elapsed running time using its own clock, and atomically writes the new child state, immutable audit events, and a request receipt. Reusing a request ID returns its original committed child result with fresh server time. A changed payload with the same ID is rejected.
+Every persistent change calls an authenticated backend. The backend validates shared family membership (one or two connected parents), settles elapsed running time using its own clock, and atomically writes the new child state, immutable audit events, and a request receipt. Reusing a request ID returns its original committed child result with fresh server time. A changed payload with the same ID is rejected.
 
 The browser uses verified server time with a monotonic local clock between syncs. Its wall clock does not decide persisted balances. Firestore snapshots update both parent views, while a local display tick avoids per-second writes. Server clock sync runs on opening, reconnection, foregrounding, and about once per minute.
 
@@ -69,6 +69,16 @@ npm run test:rules
 npm run build
 ```
 
-`npm test` runs the exact arithmetic/domain and transactional service tests. `npm run test:rules` starts a demo-only Firestore emulator and runs both security rules and real Firestore transaction/listener tests. It does not write to the live `screen-timers` project. `npm run build` regenerates the bundled Firebase SDKs and validates the PWA assets. `TEST_REPORT.md` distinguishes executed checks from the live-device checks still required after activation.
+`npm test` runs the exact arithmetic/domain and transactional service tests. `npm run test:rules` starts a demo-only Firestore emulator and runs both security rules and real Firestore transaction/listener tests. It does not write to the live `screen-timers` project. `npm run build` regenerates the bundled app and push SDK and validates the PWA assets. `TEST_REPORT.md` distinguishes executed checks from the live-device checks still required after activation.
 
 No sample balances, fake parent login, demo adapter, or QA page is included in the delivered app.
+
+## Account and startup update in 1.1
+
+Google sign-in automatically creates a Firebase account on first use. Email/password registration is available through Create account. The first parent taps Create our family; their partner joins using the app’s family code. The Firebase backend records membership automatically and caps the shared family at two parents. Existing children/history are not reset.
+
+The production entrypoint is now the prebuilt **app-bundle.js** loaded as a regular deferred script. The runtime no longer depends on a chain of separately uploaded JavaScript modules. Startup includes readable recovery UI, browser storage fallback, and auth persistence that avoids waiting on IndexedDB. `storage.js` supplies safe preference access when localStorage is unavailable.
+
+If changing config.js (including the public VAPID key), run npm run build and upload the updated app-bundle.js and push-sdk.js as well. Application source remains at the repository root.
+
+The authentication requirements in SPECIFICATION.md describe the original 1.0 handoff; the user’s later request for Google/email self-registration and simpler family connection supersedes those account-enrollment requirements.

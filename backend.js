@@ -1,3 +1,5 @@
+import {randomBytes} from 'node:crypto';
+import {enroll} from './family.js';
 import {initializeApp} from 'firebase-admin/app';
 import {getFirestore} from 'firebase-admin/firestore';
 import {getFunctions} from 'firebase-admin/functions';
@@ -11,9 +13,10 @@ import {mutate,reconcile,validParents} from './service.js';
 import {CHILDREN,seed,nextExpiry} from './domain.js';
 initializeApp();const db=getFirestore();setGlobalOptions({region:'us-central1',maxInstances:10,serviceAccount:'300347806510-compute@developer.gserviceaccount.com'});
 const store={transaction:fn=>db.runTransaction(async t=>fn({get:async p=>{const s=await t.get(db.doc(p));return s.exists?s.data():null;},set:(p,v)=>t.set(db.doc(p),v),create:(p,v)=>t.create(db.doc(p),v)}))};
-async function authorized(uid){if(!uid)throw new HttpsError('unauthenticated','Sign in to continue.');const c=(await db.doc('config/household').get()).data();if(!validParents(c)||!c.parentUids.includes(uid))throw new HttpsError('permission-denied','This account is not an authorized parent.');return c;}
+async function authorized(uid){if(!uid)throw new HttpsError('unauthenticated','Sign in to continue.');const c=(await db.doc('config/household').get()).data();if(!validParents(c)||!c.parentUids.includes(uid))throw new HttpsError('failed-precondition','Connect your family to continue.',{needsFamily:true});return c;}
 export const action=onCall(async req=>{const receivedAt=Date.now();await authorized(req.auth?.uid);try{const result=await mutate(store,req.auth.uid,req.auth.token.name||req.auth.token.email||'Parent',req.data);return {...result,receivedAt,serverNow:Date.now()};}catch(e){console.error('Action failed',e.message);throw new HttpsError('failed-precondition',e.message);}});
-export const sync=onCall(async req=>{const receivedAt=Date.now();await authorized(req.auth?.uid);await db.runTransaction(async tx=>{const refs=CHILDREN.map(id=>db.doc(`children/${id}`)),snaps=await tx.getAll(...refs);snaps.forEach((s,i)=>{if(!s.exists)tx.create(refs[i],seed(CHILDREN[i],Date.now()));});});await Promise.all(CHILDREN.map(id=>reconcile(store,id)));return {receivedAt,serverNow:Date.now()};});
+export const sync=onCall(async req=>{const receivedAt=Date.now();const household=await authorized(req.auth?.uid);await db.runTransaction(async tx=>{const refs=CHILDREN.map(id=>db.doc(`children/${id}`)),snaps=await tx.getAll(...refs);snaps.forEach((s,i)=>{if(!s.exists)tx.create(refs[i],seed(CHILDREN[i],Date.now()));});});await Promise.all(CHILDREN.map(id=>reconcile(store,id)));return {receivedAt,serverNow:Date.now(),familyCode:household.inviteCode||'',parentCount:household.parentUids.length};});
+export const family=onCall(async req=>{if(!req.auth?.uid)throw new HttpsError('unauthenticated','Sign in to continue.');try{return await enroll(store,req.auth.uid,req.data?.mode,req.data?.code,()=>randomBytes(8).toString('hex').toUpperCase());}catch(e){throw new HttpsError('failed-precondition',e.message);}});
 const queue=()=>getFunctions().taskQueue('locations/us-central1/functions/expire');
 async function enqueue(child){const at=nextExpiry(child);if(at===null)return;await queue().enqueue({childId:child.id,version:child.version},{scheduleTime:new Date(Math.max(Date.now()+1000,Math.min(at,Date.now()+28*86400000))),dispatchDeadlineSeconds:60});}
 export const scheduleExpiry=onDocumentWritten({document:'children/{childId}',retry:true},async e=>{const c=e.data?.after.data();if(c)await enqueue(c);});

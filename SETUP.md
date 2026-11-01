@@ -1,155 +1,67 @@
-# Screen Timers — activation and publishing
+# Screen Timers 1.1 — quick setup
 
-Use your existing **screen-timers** Firebase project. Everything below is a one-time setup unless you release an update. You can do it from your phone: use your browser’s desktop-site mode for consoles, and Google Cloud Shell for terminal commands.
+This version adds **Continue with Google**, **Create account**, and an in-app **Create family / Join family** flow. You do not need to create parent accounts in the console or copy UIDs anymore.
 
-## 1. Create the two parent accounts
+## 1. Enable sign-in in your existing Firebase project
 
-1. Open [Firebase Console](https://console.firebase.google.com/) and select **screen-timers**.
-2. In **Authentication → Sign-in method**, enable **Email/Password**. Leave email-link sign-in off unless you separately want it; this app uses passwords.
-3. In **Authentication → Users → Add user**, create the first parent’s email/password, then the second parent’s. Keep passwords out of GitHub and this source code.
-4. Copy the **UID** of each account. They must be distinct. These are the only two authorized parents; creating an Auth account alone never grants household access.
-5. In **Authentication → Settings → Authorized domains**, add your GitHub Pages host (for example, your actual `USERNAME.github.io`, without a scheme or repository path). Add a custom domain too if you use one.
+Open [Firebase Console](https://console.firebase.google.com/), select **screen-timers**, then:
 
-The app has no public sign-up, guest access, or child sign-in.
+1. **Authentication → Sign-in method → Google → Enable.** Choose your project’s support email and save.
+2. Enable **Email/Password** too if you want the email Create account option.
+3. **Authentication → Settings → Authorized domains → Add domain.** Add your actual GitHub Pages host, such as `YOURNAME.github.io`, without `https://` or a repository path. Add your custom domain if you use one.
 
-## 2. Create Firestore and the private allowlist
+Signing in with Google creates the account automatically the first time. The separate Create account option is for email/password.
 
-1. In **Firestore Database**, create the **(default)** database in **production mode**. Choose a suitable US location; the functions are configured for `us-central1`.
-2. Create collection **config**, document **household**.
-3. Add field **parentUids**, type **array**, containing exactly two **string** entries: the first parent UID and the second parent UID. No other fields are required.
-4. Do not enable test-mode/open rules. The restrictive `firestore.rules` in this package must be deployed in step 4.
+## 2. Deploy the Firebase backend and rules
 
-You create this document with your Firebase administrator’s console access. The website cannot read, edit, or create enrollment documents. An authorized first sync initializes Reid and Evan with zero balances, no grades, no running timers, and no lockouts. Repeated syncs do not overwrite existing data.
+If you have not created Firestore yet, create its **(default)** database in production mode. Keep using the existing **screen-timers** project.
 
-An alternative admin-only initializer is provided as `bootstrap.js`. It uses Application Default Credentials; never put a service-account key in this project. After setting up trusted ADC, its form is:
+The shared authoritative timers still use the included Firebase Functions backend, Cloud Tasks, and Scheduler. This requires the **Blaze** plan and may incur usage charges. This release simplifies account setup; it does not remove the backend or its deployment requirement.
+
+From your phone, use Google Cloud Shell. Upload and extract this ZIP, open its `screen-timers` folder, use Node 22, then run:
 
 ```sh
-node bootstrap.js FIRST_PARENT_UID SECOND_PARENT_UID
-```
-
-Use either the console allowlist method or this script. Both retain existing child balances.
-
-## 3. Prepare billing and the deployment terminal
-
-The authoritative backend uses Functions (2nd gen), Cloud Tasks, Scheduler, and Firestore. Enable the **Blaze** plan on `screen-timers` and set a budget alert appropriate for you. The app is not a static-only/free-tier backend deployment.
-
-Open [Google Cloud Console](https://console.cloud.google.com/), select `screen-timers`, and open **Cloud Shell**. Upload the delivered ZIP using Cloud Shell’s Upload menu. In the terminal:
-
-```sh
-unzip screen-timers-1.0.0.zip
-cd screen-timers
-node --version
 npm ci
 npx firebase login --no-localhost
-```
-
-Use Node.js **22** for deployment. If your Cloud Shell has another version, install/select Node 22 with its available version manager before `npm ci`. Complete Firebase login using the account that administers this project. No Firebase service-account key is needed for normal CLI deployment.
-
-The ZIP filename above assumes you kept the supplied filename. Adjust it to your actual downloaded filename if your phone renames it.
-
-## 4. Deploy security rules, indexes, and all six backend functions
-
-```sh
-npm test
 npm run deploy:backend
 ```
 
-The deploy script targets `screen-timers` explicitly. Accept the Firebase CLI’s required API-enablement and artifact-retention prompts as appropriate. The CLI may ask you to finish a one-time Google Cloud permission or service identity setup; follow its reported error rather than opening Firestore access.
+This deploys the updated `firestore.rules`, indexes, and seven functions, including the new **family** function. Updating GitHub alone does not deploy Firebase. Detailed deployment and IAM troubleshooting are in **DEPLOYMENT_DETAILS.md**.
 
-The deployed exports are:
+Do **not** manually create `config/household` or enter UIDs for a new setup. Create family does this automatically. Existing configured families and balances are preserved.
 
-| Function | Purpose |
-| --- | --- |
-| `action` | Authenticated, transactional parent mutations |
-| `sync` | Authorized initialization, reconciliation, and server time |
-| `scheduleExpiry` | Schedule the child’s next expiry after a state change |
-| `expire` | IAM-protected Cloud Tasks handler |
-| `expirySafetyNet` | One-minute scheduled reconciliation |
-| `notify` | Event-triggered optional push delivery |
+## 3. Upload the updated website
 
-The runtime service account is explicitly set in `backend.js` to:
+Extract the ZIP and upload the **contents** of its `screen-timers` folder to your GitHub repository root, replacing the old files. `index.html` and **app-bundle.js** must sit together at the root.
 
-`300347806510-compute@developer.gserviceaccount.com`
+In GitHub **Settings → Pages**, publish `main` and `/ (root)`, or use the included optional `github-pages.yml` as `.github/workflows/pages.yml` with GitHub Actions selected as the Pages source.
 
-If deployment or task dispatch reports IAM errors, verify this service account exists for your project and grant the following roles. The commands below are admin setup commands you run in Cloud Shell; they change access only for this runtime identity. They do not grant browser users direct database access.
+Open the published HTTPS website, rather than `index.html` from your phone’s file manager. The app bundles its runtime into one script so it no longer relies on separately uploaded Firebase SDK modules at startup.
 
-```sh
-gcloud services enable cloudfunctions.googleapis.com run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com cloudtasks.googleapis.com cloudscheduler.googleapis.com eventarc.googleapis.com pubsub.googleapis.com fcm.googleapis.com --project=screen-timers
+## 4. Connect you and your wife
 
-gcloud projects add-iam-policy-binding screen-timers --member=serviceAccount:300347806510-compute@developer.gserviceaccount.com --role=roles/datastore.user
-gcloud projects add-iam-policy-binding screen-timers --member=serviceAccount:300347806510-compute@developer.gserviceaccount.com --role=roles/cloudtasks.enqueuer
-gcloud projects add-iam-policy-binding screen-timers --member=serviceAccount:300347806510-compute@developer.gserviceaccount.com --role=roles/cloudfunctions.viewer
-gcloud projects add-iam-policy-binding screen-timers --member=serviceAccount:300347806510-compute@developer.gserviceaccount.com --role=roles/firebasecloudmessaging.admin
-gcloud iam service-accounts add-iam-policy-binding 300347806510-compute@developer.gserviceaccount.com --project=screen-timers --member=serviceAccount:300347806510-compute@developer.gserviceaccount.com --role=roles/iam.serviceAccountUser
-```
+1. You tap **Continue with Google** and select your Gmail account, or choose **Create account** to register with email/password.
+2. Tap **Create our family** once. Reid and Evan start at zero if no existing data exists.
+3. Your family code appears on Home while waiting for your partner, and in **Settings**.
+4. Your wife signs in using her own Google account or creates her own email account.
+5. She pastes your code under **Join our family**.
 
-The task function declares that runtime account as its invoker. Confirm that it has **Cloud Run Invoker** on the underlying `expire` Cloud Run service (Console → Cloud Run → expire → Permissions). If the CLI did not set the binding:
+You now share the same Reid/Evan time banks, timers, grades, lockouts, and history. Both parents have the same everyday controls. Your first account can use the app immediately, before the second account joins.
 
-```sh
-gcloud run services add-iam-policy-binding expire --region=us-central1 --project=screen-timers --member=serviceAccount:300347806510-compute@developer.gserviceaccount.com --role=roles/run.invoker
-```
+Existing 1.0 accounts still work. If an existing family already contains two different accounts, sign in with those original accounts rather than creating additional parent identities. Creating another Auth account does not reset the family or overwrite its balances.
 
-Cloud Tasks’ Google-managed service agent must retain its standard Cloud Tasks Service Agent role. Do not make `expire` public to resolve a task error. The `action` and `sync` HTTPS callable endpoints must be reachable from the web; each enforces Firebase Authentication and the private allowlist in code. Set no public browser writes in Firestore.
+## 5. Install, verify, and optional notifications
 
-After deployment, confirm:
+On Android Chrome, use **Install app**. On iPhone/iPad, use Share → Add to Home Screen. Open both parent accounts, award a minute, and confirm that both phones see the same balance and timer changes.
 
-- Firestore rules show your deployed deny-by-default rules, and composite indexes finish building.
-- Cloud Tasks has the `expire` queue in `us-central1`.
-- Cloud Scheduler has the Firebase-created safety-net job.
-- Functions logs show no permission errors when starting a short timer.
+For optional push, add the public Firebase VAPID key in `config.js`, run `npm run build` to update the bundle, upload the resulting files, and enable notifications on each device in Settings. Full instructions and delivery limitations are in **DEPLOYMENT_DETAILS.md**. Shared in-app data works without notification permission.
 
-## 5. Publish to GitHub Pages — easiest phone workflow
+## If startup still fails
 
-1. Create or open your GitHub repository.
-2. Extract the ZIP on your phone. Open its single `screen-timers` folder.
-3. Upload **the contents of that folder** to the repository root. `index.html` must be at the root; do not upload an enclosing `screen-timers` folder into the repository.
-4. Open **Repository Settings → Pages**.
-5. Select **Deploy from a branch → main → / (root)** and save.
-6. Wait for GitHub to finish its Pages deployment, then open the URL GitHub displays.
-7. Sign in as the first parent, then open the same URL on the other parent’s phone and sign in with their own account.
+The initial screen now has recovery messages for a missing app bundle, initialization errors, slow initialization, and downloaded-file URLs. If you get an error, its exact text will help identify the deployment issue.
 
-All asset URLs, the manifest, the service worker, and notification links work below a GitHub Pages repository path. No base-path edit is required. HTTPS is required for installation and web push.
+After replacing files, close old app tabs, reopen the published website, and refresh. If an older installed copy persists, clear this website’s cached site data in the browser, then sign in again. Clearing local browser data does not delete the family’s Firestore data, though you should confirm any pending change before clearing it.
 
-### Optional automated Pages workflow
+The live Google OAuth flow cannot be verified until Google is enabled and your actual website domain is authorized in your Firebase project. No live Firebase settings or accounts were changed during this build.
 
-A ready-to-use **github-pages.yml** is included at the source root. To use it, create `.github/workflows/pages.yml` in GitHub and paste that file’s contents. Then choose **GitHub Actions** as the Pages source. This workflow tests the domain, rebuilds SDK bundles, and publishes only the static app files. It does not deploy Firebase or require Firebase admin secrets. The only nested path needed for this optional workflow is GitHub’s required `.github/workflows/` directory; all application source stays at the repository root.
-
-For phone-only publishing, the branch/root method above is sufficient.
-
-## 6. Optional push setup
-
-1. Firebase Console → **Project settings → Cloud Messaging**.
-2. Ensure the **Firebase Cloud Messaging API (V1)** is enabled.
-3. Under **Web Push certificates**, generate a key pair if none exists.
-4. Copy only the **public VAPID key** into `vapidKey` in `config.js`. This public key belongs in the frontend; never paste a private key or service-account JSON.
-5. Publish the updated `config.js` (and rebuild/upload the static files if changing other configuration). No additional app-server secret is required for FCM sends from the deployed Admin SDK.
-6. On each parent’s device, open the app, go to **Settings → Notifications → Enable on this device**, and grant permission if desired.
-7. Set event preferences for that device. By default, a parent is not notified about their own actions; expiry events go to both opted-in parents.
-
-Android: use a supported browser such as Chrome and install the app when offered. iPhone/iPad: install to the Home Screen and open the installed app before requesting push. Unsupported browsers, missing configuration, and denied permission have explanatory in-app states; the shared history works without push.
-
-The registered `sw.js` handles both app caching and Firebase background notification messages through its prebuilt `push-sdk.js`. No separate root-only messaging-worker filename is needed because the client passes this service-worker registration to FCM.
-
-## 7. Live acceptance pass
-
-Before relying on the family setup:
-
-1. Confirm both initial banks are zero. Add A, B, C, D to Reid; award 60 minutes and confirm exactly 4:30. Change D to B and verify that the prior 4:30 remains.
-2. Use a flat correction to add one minute to Evan. Start both timers. On the other phone, pause one while leaving the other running. Close/reopen and confirm the correct remaining balance.
-3. Adjust a running bank up and down. Deduct more than remains and confirm it stops at zero. Add-back should leave it stopped.
-4. Start a short lockout while a timer is running. Confirm the bank stops decreasing, earning still works, and Start remains disabled. Adjust remaining lockout in both directions. Expiry must not start the timer.
-5. Make simultaneous corrections from both phones; verify neither change is lost and History records each parent accurately.
-6. Leave both apps closed through a short expiry, reopen, and verify the system history entry. If enabled, check push on both actual devices.
-7. Switch Light/Dark/Auto. Install the PWA. After one successful online launch, go offline and reopen; the shell/last-known bank should display a stale banner and refuse mutations. Reconnect and confirm controls recover.
-8. Try an account whose UID is not on the allowlist. It must have no shared data access.
-
-## Updates, recovery, and maintenance
-
-- For a release, increment `VERSION` in `domain.js`, package version, and `CACHE` in `sw.js`. Regenerate SDK bundles if their dependencies or bundled configuration change. Publish all changed static files together.
-- Settings has **Check for app updates**. An installed service-worker update claims clients and reloads into the new version. Pending mutation IDs survive refresh. Unsaved form entries do not.
-- History and request receipts have no TTL; they are retained indefinitely. Receipts preserve retry idempotency. Do not delete them casually.
-- Never edit a bank directly in the console for routine corrections; use the app so the audit record stays accurate.
-- If login works but access is denied, check the two exact UIDs in `config/household`, deployed rules, Functions deployment, and project selection. Do not relax security rules.
-- If countdowns render but closed-app notifications fail, check device permissions, VAPID setup, Cloud Tasks IAM, Functions logs, and Scheduler status. Time-use expiry and push delivery are separate observations.
-
-Official references: [Firebase task queues](https://firebase.google.com/docs/functions/task-functions), [FCM web setup](https://firebase.google.com/docs/cloud-messaging/web/get-started), [FCM background delivery](https://firebase.google.com/docs/cloud-messaging/web/receive-messages), and [Apple web push](https://developer.apple.com/documentation/usernotifications/sending-web-push-notifications-in-web-apps-and-browsers).
+Official references: [Google sign-in](https://firebase.google.com/docs/auth/web/google-signin) and [Firebase account creation](https://firebase.google.com/docs/auth/web/start).

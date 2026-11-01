@@ -1,5 +1,5 @@
 import {CHILDREN,seed,apply,settle,nextExpiry} from './domain.js';
-export const validParents=c=>Array.isArray(c?.parentUids)&&c.parentUids.length===2&&new Set(c.parentUids).size===2&&c.parentUids.every(x=>typeof x==='string'&&x.length>0);
+export const validParents=c=>Array.isArray(c?.parentUids)&&c.parentUids.length>=1&&c.parentUids.length<=2&&new Set(c.parentUids).size===c.parentUids.length&&c.parentUids.every(x=>typeof x==='string'&&x.length>0);
 /* Store adapters expose get/set/create inside a serializable transaction. */
 export async function mutate(store,uid,displayName,data,clock=Date.now){
  if(!uid)throw Error('Sign in to continue.');if(!data||!CHILDREN.includes(data.childId)||!/^[-a-zA-Z0-9_]{16,100}$/.test(data.requestId??''))throw Error('Invalid request.');

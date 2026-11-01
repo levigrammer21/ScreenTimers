@@ -1,6 +1,6 @@
 {
   "name": "screen-timers",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "main": "backend.js",
@@ -8,7 +8,7 @@
     "node": "22"
   },
   "scripts": {
-    "test": "node --test domain.test.js service.test.js",
+    "test": "node --test domain.test.js service.test.js family.test.js startup.test.js",
     "build": "node build.js",
     "deploy:backend": "firebase deploy --only firestore,functions --project screen-timers",
     "test:rules": "firebase emulators:exec --only firestore --project demo-screen-timers 'node --test rules.test.js integration.test.js'"

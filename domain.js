@@ -1,6 +1,6 @@
 /* Exact rational microseconds. All persisted integers are decimal strings. */
 export function randomId(){if(globalThis.crypto.randomUUID)return globalThis.crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
-export const VERSION='1.0.0';
+export const VERSION='1.1.0';
 export const CHILDREN=['reid','evan'];
 export const MAX_BANK_US=365n*86400n*1000000n;
 export const MAX_DURATION_MS=365*86400000;

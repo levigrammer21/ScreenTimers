@@ -1,3 +1,5 @@
+> v1.1 amendment: Google sign-in, email account creation, and self-service two-parent family connection replace the original manual UID enrollment and no-signup requirements below. See SETUP.md for current activation steps. Other timer, grade, lockout, and synchronization behavior is retained.
+
 # SCREEN TIMERS — IMPLEMENTATION HANDOFF
 
 ## Mission
