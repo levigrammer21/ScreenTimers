@@ -1,84 +1,58 @@
-# Screen Timers · 1.1.0
+# Screen Timers · 1.2.0
 
-A private, mobile-first family PWA for two parents, Reid, and Evan. The frontend is ready to upload to **GitHub Pages from the repository root**. The complete Firebase backend, security rules, tests, and deployment instructions are included.
+A polished shared screen-time dashboard for Reid and Evan. **Anyone signed in opens the same dashboard with full controls.** Google sign-in and email account creation are included.
 
-**Start with [SETUP.md](SETUP.md).** The existing `screen-timers` Firebase project is already configured in `config.js`. Enable Google (and optionally Email/Password) in Firebase Authentication and deploy the updated backend. You and your partner then create your own accounts and connect using a family code in the app. No manual UID setup is needed. Uploading the web files alone does not deploy Firebase Functions.
+**Start with SETUP.md.** Upload the supplied files to GitHub Pages and paste the included rules into Firebase once. No sharing codes, enrollment, Cloud Functions, Cloud Tasks, Scheduler, admin credentials, Cloud Shell, or command-line deployment is required.
 
-## Included
+## Features
 
-- Separate live time banks, independent timers, and lockouts for Reid and Evan.
-- Start, pause, resume, stop; add or deduct time while running; no automatic restart after expiry.
-- Exact rational grade calculations, award preview, tap-to-change grades, and separate flat corrections.
-- Server-generated audit history with child/event filters, pagination, exact amounts, actors, and award snapshots.
-- Light, dark, and system appearance, saved by parent.
-- Installable PWA with icons, offline app shell, last-known balances, visible stale status, and online-only mutations.
-- Optional per-device FCM push with event preferences and in-app update notices.
-- Firestore transactions, request idempotency, scheduled expiry tasks, and a one-minute reconciliation safety net.
-- Root-level source, a prebuilt app bundle and push SDK, lockfile, deployment configuration, and executable tests.
+- Separate time banks for Reid and Evan; both begin at zero with no grades if no prior data exists.
+- Instant Start/Pause/Resume/Stop. Independent timers continue logically while apps are closed and preserve unused time.
+- Grade-adjusted awards with exact previews and optional reasons; tap-to-change grades. A=1.25×, B=1×, C=0.6×, D=0.1×, F=0×; all listed grades multiply.
+- Separate flat time additions/deductions. Running adjustments settle elapsed consumption first; deductions floor at zero.
+- Per-child lockouts, live remaining time, extensions/subtractions, early ending, and earning during lockout.
+- Shared live Firestore views, atomic transactions, idempotent retries, and no per-second database writes.
+- History with actors, exact amounts, award snapshots, requested/actual deductions, filters, and older-history pagination.
+- Light, Dark, and Auto themes, an installable PWA, a cached offline shell, clear stale status, and online-only mutations.
+- Optional alerts while the app is open, plus in-app activity notices. Closed-app push is not included.
+- A single prebuilt app bundle and readable startup recovery messages.
 
-The ZIP extracts into **one `screen-timers` folder**, with all supplied code at that folder’s root. No frontend build is required to publish the included static files. Backend code lives at the same root, as requested. Node dependencies are installed only when deploying or developing.
+All supplied source is at the root of one `screen-timers` folder. The source and the prebuilt runtime are included; no build step is required for ordinary phone-based publishing.
 
-## Everyday use
+## Exact calculations and timers
 
-1. Sign in with Google or create an email account. The first parent creates the family; the second joins using the family code. Both children begin at zero with no grades (1×).
-2. Tap **Add earned time**. Pick 5/15/30/60 minutes or enter hours/minutes, optionally give a reason, review the grade-adjusted credit, and confirm.
-3. Start the timer when screen time begins. Pause freezes the bank; Stop ends the session and preserves unused time. Timers consume time even with both apps closed.
-4. Use **Adjust time** for flat additions or deductions. These bypass grades. Deductions require review and floor at zero.
-5. Use **Grades** to add letters. Tap a grade to change or delete it. A 1.25×, B 1×, C 0.6×, D 0.1×, F 0×. All letters multiply together.
-6. Use **Lockout** to stop usage for a duration. Time already banked stays; new earnings are allowed. Add/subtract the remaining lockout or end it early.
-7. Open **History** and expand an event for its exact audit details.
+Balances use rational microseconds: `{n: "numerator", d: "denominator"}`. BigInt calculations preserve even sub-microsecond remainders. Prior awards retain their grade and multiplier snapshots. Grade changes affect only new awards. The countdown rounds positive fractional time up to a whole displayed second, while exact award/history values remain available.
 
-## Exact time policy
+Up to 24 grades are supported per child. Base earned awards are limited to 7 days, and banks, flat corrections, and remaining lockouts to 365 days. Reasons are optional, up to 500 characters. Sessions have no separate duration cap; more time can be added while running.
 
-Balances are rational **microseconds**, serialized as `{n: "numerator", d: "denominator"}`. BigInt arithmetic reduces fractions after every operation. Even sub-microsecond award remainders are preserved exactly; there is no rounding or discarded remainder. Grade changes cannot alter a prior award. Stored audit snapshots retain the exact grade product and credited amount.
+The direct Firestore adapter calibrates against a Firestore server timestamp and tracks elapsed time with a monotonic browser clock. State changes settle elapsed time atomically. Closing both apps does not stop elapsed consumption. On return, expiry is reconciled at its logical timestamp and logged once, even if both parents reopen together. Adding time after expiry never restarts the timer automatically.
 
-The large countdown rounds **up** to a whole second so positive fractional time does not display as zero. Award previews also print the exact seconds (or an exact fraction when a decimal would be too long). Timer timestamps have 1 ms resolution. Elapsed milliseconds consume precisely 1,000 microseconds each; the next expiry is scheduled at the first millisecond boundary that exhausts the bank.
+## Access and shared data
 
-Bounds: up to 24 grades per child; an earned base award up to 7 days; flat corrections, resulting banks, and remaining lockouts up to 365 days. These limits prevent runaway values while supporting long-running sessions. Reasons are optional and limited to 500 characters.
+As requested, published rules permit **all signed-in accounts** to read and write all app data. They block signed-out requests. There is no private-family membership or account approval process. The interface applies validation and records history; it is a trusted shared app, with no server-side anti-tampering system.
 
-## How synchronization works
+Shared profiles remain at `children/reid` and `children/evan`. History and retry receipts remain at `history` and `requests`. Existing data at those paths is retained. Personal UI preferences are stored by UID for convenience, but the deliberately simple rules grant signed-in accounts full project data access.
 
-Every persistent change calls an authenticated backend. The backend validates shared family membership (one or two connected parents), settles elapsed running time using its own clock, and atomically writes the new child state, immutable audit events, and a request receipt. Reusing a request ID returns its original committed child result with fresh server time. A changed payload with the same ID is rejected.
+This app manages the time bank; it does not integrate with operating-system app blocking on a child’s device.
 
-The browser uses verified server time with a monotonic local clock between syncs. Its wall clock does not decide persisted balances. Firestore snapshots update both parent views, while a local display tick avoids per-second writes. Server clock sync runs on opening, reconnection, foregrounding, and about once per minute.
+## Notifications, offline behavior, and costs
 
-If a response is interrupted, the app retains the pending request and offers **Confirm change**. Retrying uses that same request ID, including after refresh. The app does not queue new balance or lockout changes offline. An award also verifies that the grades used for its preview have not changed before commit.
+No backend is needed or included. Closed-app push is consequently not provided. Optional browser notifications can be shown while this app is running, subject to browser permission/support. Canonical history remains in Firestore. Expiry while all apps are closed is recorded when an app next connects, using the original logical expiry time.
 
-Cloud Tasks schedule zero-balance and lockout transitions. Stale tasks check the child’s version and cannot change a newer state. A scheduled reconciliation job recovers missed transitions. Expiry history is idempotent even if task delivery is duplicated. Long lockouts are rescheduled in chunks within Cloud Tasks’ scheduling horizon.
+The PWA caches its shell and stores a last-known view for offline display. Mutations use online Firestore transactions and cannot silently queue bank changes offline. Firebase Authentication and Firestore remain cloud services with their own quotas and usage terms; this app does not require enabling Cloud Functions or a billing plan for those functions. It can use the normal Firestore project limits rather than a function-based deployment.
 
-## Privacy and limits
+## Developer checks (optional)
 
-Firestore rules deny browser writes to balances, audit history, request receipts, and enrollment. Parent preferences and device tokens are private to that UID. The web Firebase configuration is public by design; authorization is enforced on the server and in Firestore rules.
+The files are ready to upload without these commands. For future source changes, use Node 22:
 
-This is a parent-managed time bank; it does not integrate with Android/iOS operating-system app blocking. Parents apply the time-use rules on the children’s devices.
-
-Cloud Functions, Cloud Tasks, Scheduler, and related infrastructure require the Firebase Blaze billing plan. Usage may incur charges. The backend is necessary for authoritative shared timers and expiry notifications while both phones are closed.
-
-Push is optional and subject to browser/device support, permission, network, and OS delivery policies. iPhone/iPad push requires a supported installed Home Screen web app. Neither server task delivery nor push is a hard real-time alarm. Logical time expiry is authoritative at its timestamp; history reconciliation or delivery can arrive later. The minute safety net normally catches an unavailable task on its next run, subject to service availability. FCM deliveries can be retried; notification tags reduce duplicate visible notifications. History remains canonical.
-
-Offline shell and last-known balances are cached for the signed-in parent, with controls disabled. Signing in and first-time authorization require a connection. System fonts serve as the fallback if optional Google Fonts cannot load offline.
-
-## Development and validation
-
-Use Node.js 22. Java 21+ is needed for the current Firebase emulator CLI.
-
-```sh
+```
 npm ci
 npm test
-npm run test:rules
 npm run build
 ```
 
-`npm test` runs the exact arithmetic/domain and transactional service tests. `npm run test:rules` starts a demo-only Firestore emulator and runs both security rules and real Firestore transaction/listener tests. It does not write to the live `screen-timers` project. `npm run build` regenerates the bundled app and push SDK and validates the PWA assets. `TEST_REPORT.md` distinguishes executed checks from the live-device checks still required after activation.
+The optional emulator regression suite is `npm run test:rules` with Java 21+ for the pinned current CLI. It uses demo projects only. App source changes must be rebuilt into `app-bundle.js`; changing config.js also requires rebuilding. For a release, update the version in domain.js/package.json, the bundle query in index.html, and the service-worker cache version.
 
-No sample balances, fake parent login, demo adapter, or QA page is included in the delivered app.
+The supplied `github-pages.yml` is optional. If using GitHub Actions, paste it into `.github/workflows/pages.yml`. Branch/root Pages publishing requires no workflow file. No backend workflow is present or needed.
 
-## Account and startup update in 1.1
-
-Google sign-in automatically creates a Firebase account on first use. Email/password registration is available through Create account. The first parent taps Create our family; their partner joins using the app’s family code. The Firebase backend records membership automatically and caps the shared family at two parents. Existing children/history are not reset.
-
-The production entrypoint is now the prebuilt **app-bundle.js** loaded as a regular deferred script. The runtime no longer depends on a chain of separately uploaded JavaScript modules. Startup includes readable recovery UI, browser storage fallback, and auth persistence that avoids waiting on IndexedDB. `storage.js` supplies safe preference access when localStorage is unavailable.
-
-If changing config.js (including the public VAPID key), run npm run build and upload the updated app-bundle.js and push-sdk.js as well. Application source remains at the repository root.
-
-The authentication requirements in SPECIFICATION.md describe the original 1.0 handoff; the user’s later request for Google/email self-registration and simpler family connection supersedes those account-enrollment requirements.
+See TEST_REPORT.md for executed tests and the remaining real-device checks. SPECIFICATION.md contains the original handoff with current amendments marked at the top.

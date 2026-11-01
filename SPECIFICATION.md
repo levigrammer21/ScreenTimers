@@ -1,3 +1,5 @@
+> v1.2 amendment: The user explicitly requested one shared app where any signed-in account has full access, with no sharing codes, enrollment, or extra security setup. Direct Firebase Auth/Firestore replaces Cloud Functions. Original requirements for trusted backend enforcement and closed-app push are superseded; elapsed timers still reconcile accurately on return. Current setup is SETUP.md.
+
 > v1.1 amendment: Google sign-in, email account creation, and self-service two-parent family connection replace the original manual UID enrollment and no-signup requirements below. See SETUP.md for current activation steps. Other timer, grade, lockout, and synchronization behavior is retained.
 
 # SCREEN TIMERS — IMPLEMENTATION HANDOFF

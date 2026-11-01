@@ -1,67 +1,55 @@
-# Screen Timers 1.1 — quick setup
+# Screen Timers 1.2 — simple setup
 
-This version adds **Continue with Google**, **Create account**, and an in-app **Create family / Join family** flow. You do not need to create parent accounts in the console or copy UIDs anymore.
+**No Cloud Functions. No Cloud Shell. No sharing codes. No account allowlist.**
 
-## 1. Enable sign-in in your existing Firebase project
+Every signed-in account opens the same shared dashboard and has full access. Google sign-in and email Create account are retained. Existing Reid/Evan documents and history at the original root paths are kept.
 
-Open [Firebase Console](https://console.firebase.google.com/), select **screen-timers**, then:
+## 1. Replace the website files
 
-1. **Authentication → Sign-in method → Google → Enable.** Choose your project’s support email and save.
-2. Enable **Email/Password** too if you want the email Create account option.
-3. **Authentication → Settings → Authorized domains → Add domain.** Add your actual GitHub Pages host, such as `YOURNAME.github.io`, without `https://` or a repository path. Add your custom domain if you use one.
+Extract this ZIP and upload the contents of its single **screen-timers** folder to your GitHub repository root, replacing old files. Keep `index.html` and `app-bundle.js` beside each other. Wait for GitHub Pages to finish updating.
 
-Signing in with Google creates the account automatically the first time. The separate Create account option is for email/password.
+The included app bundle is already built. You do not need to install packages or run any terminal commands to use it.
 
-## 2. Deploy the Firebase backend and rules
+## 2. Publish these Firestore rules once
 
-If you have not created Firestore yet, create its **(default)** database in production mode. Keep using the existing **screen-timers** project.
+Firebase Console → your existing **screen-timers** project → **Firestore Database → Rules**.
 
-The shared authoritative timers still use the included Firebase Functions backend, Cloud Tasks, and Scheduler. This requires the **Blaze** plan and may incur usage charges. This release simplifies account setup; it does not remove the backend or its deployment requirement.
+Replace the rules with the following and tap **Publish**:
 
-From your phone, use Google Cloud Shell. Upload and extract this ZIP, open its `screen-timers` folder, use Node 22, then run:
-
-```sh
-npm ci
-npx firebase login --no-localhost
-npm run deploy:backend
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
 ```
 
-This deploys the updated `firestore.rules`, indexes, and seven functions, including the new **family** function. Updating GitHub alone does not deploy Firebase. Detailed deployment and IAM troubleshooting are in **DEPLOYMENT_DETAILS.md**.
+These are also included verbatim in **firestore.rules**. Firebase itself requires access rules; putting the file in GitHub does not publish them. Any signed-in account can read or write app data, as requested. No account has to be approved or added to a list.
 
-Do **not** manually create `config/household` or enter UIDs for a new setup. Create family does this automatically. Existing configured families and balances are preserved.
+If Firestore has not been created yet, create its **(default)** database first. The app creates Reid and Evan automatically on first sync, with zero time and empty grades if those records do not already exist.
 
-## 3. Upload the updated website
+## 3. Sign in and use it
 
-Extract the ZIP and upload the **contents** of its `screen-timers` folder to your GitHub repository root, replacing the old files. `index.html` and **app-bundle.js** must sit together at the root.
+Open your published GitHub Pages website. You and your wife can each use **Continue with Google**, or **Create account** for email/password. Both accounts open the same dashboard immediately. There is no Create family or Join family step.
 
-In GitHub **Settings → Pages**, publish `main` and `/ (root)`, or use the included optional `github-pages.yml` as `.github/workflows/pages.yml` with GitHub Actions selected as the Pages source.
+Since Google sign-in already worked in the previous version, you should not need to change it. If setting up from scratch: Firebase Authentication → Sign-in method → enable Google and optionally Email/Password; add your actual GitHub Pages host under Authentication → Settings → Authorized domains.
 
-Open the published HTTPS website, rather than `index.html` from your phone’s file manager. The app bundles its runtime into one script so it no longer relies on separately uploaded Firebase SDK modules at startup.
+Award a minute on one phone and check the other phone. Both should show the same bank and timer state.
 
-## 4. Connect you and your wife
+## What changed
 
-1. You tap **Continue with Google** and select your Gmail account, or choose **Create account** to register with email/password.
-2. Tap **Create our family** once. Reid and Evan start at zero if no existing data exists.
-3. Your family code appears on Home while waiting for your partner, and in **Settings**.
-4. Your wife signs in using her own Google account or creates her own email account.
-5. She pastes your code under **Join our family**.
+- Timers, grades, lockouts, history, settings, exact fractional time, and live shared updates are retained.
+- Changes use direct Firestore transactions, including safe retries. There are no calls to the missing `sync` or `family` Cloud Functions.
+- The app checks Firestore server time and uses a monotonic clock between checks, rather than depending on the phone’s wall clock.
+- Timers continue logically while the apps are closed. Their remaining time is computed from the saved timestamp; expired timers/lockouts are reconciled and logged when either app next opens. No unused time is lost by closing the browser.
+- Optional notifications work while the app is open. Delivery while both apps are closed is not included in this server-free version.
+- A refreshed app can show its last-known balance offline with a clear stale label. It refuses new time changes until reconnected.
 
-You now share the same Reid/Evan time banks, timers, grades, lockouts, and history. Both parents have the same everyday controls. Your first account can use the app immediately, before the second account joins.
+## If you still see the old error
 
-Existing 1.0 accounts still work. If an existing family already contains two different accounts, sign in with those original accounts rather than creating additional parent identities. Creating another Auth account does not reset the family or overwrite its balances.
+Close the old app tab and reopen your published website after GitHub finishes deployment. Version **1.2.0** appears at the bottom. If needed, clear this website’s cached browser data and sign in again; the shared Firestore data is not deleted.
 
-## 5. Install, verify, and optional notifications
-
-On Android Chrome, use **Install app**. On iPhone/iPad, use Share → Add to Home Screen. Open both parent accounts, award a minute, and confirm that both phones see the same balance and timer changes.
-
-For optional push, add the public Firebase VAPID key in `config.js`, run `npm run build` to update the bundle, upload the resulting files, and enable notifications on each device in Settings. Full instructions and delivery limitations are in **DEPLOYMENT_DETAILS.md**. Shared in-app data works without notification permission.
-
-## If startup still fails
-
-The initial screen now has recovery messages for a missing app bundle, initialization errors, slow initialization, and downloaded-file URLs. If you get an error, its exact text will help identify the deployment issue.
-
-After replacing files, close old app tabs, reopen the published website, and refresh. If an older installed copy persists, clear this website’s cached site data in the browser, then sign in again. Clearing local browser data does not delete the family’s Firestore data, though you should confirm any pending change before clearing it.
-
-The live Google OAuth flow cannot be verified until Google is enabled and your actual website domain is authorized in your Firebase project. No live Firebase settings or accounts were changed during this build.
-
-Official references: [Google sign-in](https://firebase.google.com/docs/auth/web/google-signin) and [Firebase account creation](https://firebase.google.com/docs/auth/web/start).
+If you see a permission error, confirm the new rules above are published in the **screen-timers** project, then tap Reconnect. No terminal or backend deployment is needed.
