@@ -1,4 +1,4 @@
-# Screen Timers 1.2 — simple setup
+# Screen Timers 1.3 — simple setup
 
 **No Cloud Functions. No Cloud Shell. No sharing codes. No account allowlist.**
 
@@ -50,6 +50,12 @@ Award a minute on one phone and check the other phone. Both should show the same
 
 ## If you still see the old error
 
-Close the old app tab and reopen your published website after GitHub finishes deployment. Version **1.2.0** appears at the bottom. If needed, clear this website’s cached browser data and sign in again; the shared Firestore data is not deleted.
+Close the old app tab and reopen your published website after GitHub finishes deployment. Version **1.3.0** appears at the bottom. If needed, clear this website’s cached browser data and sign in again; the shared Firestore data is not deleted.
 
 If you see a permission error, confirm the new rules above are published in the **screen-timers** project, then tap Reconnect. No terminal or backend deployment is needed.
+
+## Updating from 1.2 for the grade fix and tasks
+
+Replace the GitHub files and refresh/reopen both devices until the footer shows **1.3.0**. No Firebase settings or rules changes are needed if the 1.2 rules are already published. Your saved grades, time banks, and history remain in the same Firestore paths.
+
+Each boy’s card now has **Tasks → + Add task**. Enter a name and base reward; **Complete** applies current grades, adds the reward, and removes the task in one operation.

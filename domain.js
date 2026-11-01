@@ -1,6 +1,6 @@
 /* Exact rational microseconds. All persisted integers are decimal strings. */
 export function randomId(){if(globalThis.crypto.randomUUID)return globalThis.crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
-export const VERSION='1.2.0';
+export const VERSION='1.3.0';
 export const CHILDREN=['reid','evan'];
 export const MAX_BANK_US=365n*86400n*1000000n;
 export const MAX_DURATION_MS=365*86400000;
@@ -13,6 +13,9 @@ export function multiply(a,b){return rational(BigInt(a.n)*BigInt(b.n),BigInt(a.d
 export function compare(a,b){const n=BigInt(a.n)*BigInt(b.d)-BigInt(b.n)*BigInt(a.d);return n<0n?-1:n>0n?1:0;}
 export const seconds=a=>Number(a.n)/Number(a.d)/1e6;
 export function multiplier(grades=[]){return grades.reduce((p,g)=>{const v=LETTERS[g.letter];if(!v)throw Error('Choose A, B, C, D, or F.');return multiply(p,rational(...v));},rational(1n));}
+// Compare grade values explicitly: Firestore map property order is not stable.
+export function gradeFingerprint(grades=[]){return JSON.stringify(grades.map(g=>[g.id,g.letter]));}
+function sameGradeSnapshot(fingerprint,grades){try{const saved=JSON.parse(fingerprint);if(!Array.isArray(saved))return false;return JSON.stringify(saved.map(g=>Array.isArray(g)?g:[g?.id,g?.letter]))===gradeFingerprint(grades);}catch{return false;}}
 export function credited(baseUs,grades){return multiply(rational(baseUs),multiplier(grades));}
 export function seed(id,now){if(!CHILDREN.includes(id))throw Error('Unknown child.');return {id,name:id==='reid'?'Reid':'Evan',bank:rational(),grades:[],state:'STOPPED',checkpointAt:now,lockoutUntil:0,version:0};}
 export function remaining(c,now){return c.state==='RUNNING'?subtract(c.bank,rational(BigInt(Math.max(0,Math.floor(now-c.checkpointAt)))*1000n)):c.bank;}
@@ -25,7 +28,7 @@ function duration(data,key,max){const v=data[key];if(!Number.isSafeInteger(v)||v
 function letter(v){if(!Object.hasOwn(LETTERS,v))throw Error('Choose A, B, C, D, or F.');return v;}
 export function apply(input,action,now){if(!Number.isSafeInteger(now))throw Error('Invalid server time.');const {child:c,events}=settle(input,now),before=structuredClone(c);const reason=action.reason??'';if(typeof reason!=='string'||reason.length>500)throw Error('Reason must be 500 characters or fewer.');let detail={reason},type=action.type;
  switch(type){
- case 'award':{if(action.gradeFingerprint!==undefined&&action.gradeFingerprint!==JSON.stringify(c.grades))throw Error('Grades changed on the other phone. Review the updated award preview.');const baseUs=duration(action,'amountUs',7*86400*1e6),m=multiplier(c.grades),amount=credited(baseUs,c.grades);c.bank=add(c.bank,amount);detail={...detail,baseUs:String(baseUs),multiplier:m,credited:amount,grades:structuredClone(c.grades)};break;}
+ case 'award':{if(action.gradeFingerprint!==undefined&&!sameGradeSnapshot(action.gradeFingerprint,c.grades))throw Error('Grades changed on the other phone. Review the updated award preview.');const baseUs=duration(action,'amountUs',7*86400*1e6),m=multiplier(c.grades),amount=credited(baseUs,c.grades);c.bank=add(c.bank,amount);detail={...detail,baseUs:String(baseUs),multiplier:m,credited:amount,grades:structuredClone(c.grades)};break;}
  case 'add':case 'deduct':{const amountUs=duration(action,'amountUs',Number(MAX_BANK_US)),requested=rational(amountUs),old=c.bank;c.bank=type==='add'?add(old,requested):subtract(old,requested);detail={...detail,requested,actual:type==='add'?requested:subtract(old,c.bank)};if(c.bank.n==='0')c.state='STOPPED';break;}
  case 'start':case 'resume':if(c.lockoutUntil>now)throw Error('Screen time is locked.');if(c.bank.n==='0')throw Error('Add time before starting.');if(type==='start'&&c.state!=='STOPPED'||type==='resume'&&c.state!=='PAUSED')throw Error('Timer changed. Refresh and try again.');c.state='RUNNING';c.checkpointAt=now;break;
  case 'pause':if(c.state!=='RUNNING')throw Error('Timer is no longer running.');c.state='PAUSED';break;

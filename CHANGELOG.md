@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Fixed false “Grades changed on the other phone” errors by comparing grade values independently of Firestore map-property ordering.
+- Award sheets now refresh their grade snapshot with the displayed preview instead of submitting a stale copy.
+- Added a shared task list to each boy’s card: enter a title and time reward, then Complete to credit earned time and remove the task atomically.
+- Task rewards use the child’s grades at completion, with the current earned amount shown on each task. Task additions, completions and removals appear in History.
+- Simultaneous completion cannot credit the same task twice; retries show the current shared bank.
+
 ## 1.2.0
 
 - Removed Cloud Functions and all command-line backend deployment requirements.

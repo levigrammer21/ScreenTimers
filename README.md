@@ -1,10 +1,12 @@
-# Screen Timers · 1.2.0
+# Screen Timers · 1.3.0
 
 A polished shared screen-time dashboard for Reid and Evan. **Anyone signed in opens the same dashboard with full controls.** Google sign-in and email account creation are included.
 
 **Start with SETUP.md.** Upload the supplied files to GitHub Pages and paste the included rules into Firebase once. No sharing codes, enrollment, Cloud Functions, Cloud Tasks, Scheduler, admin credentials, Cloud Shell, or command-line deployment is required.
 
 ## Features
+
+- Shared per-boy tasks: add a task name and base reward; Complete credits earned time and removes the task in one transaction.
 
 - Separate time banks for Reid and Evan; both begin at zero with no grades if no prior data exists.
 - Instant Start/Pause/Resume/Stop. Independent timers continue logically while apps are closed and preserve unused time.
@@ -56,3 +58,11 @@ The optional emulator regression suite is `npm run test:rules` with Java 21+ for
 The supplied `github-pages.yml` is optional. If using GitHub Actions, paste it into `.github/workflows/pages.yml`. Branch/root Pages publishing requires no workflow file. No backend workflow is present or needed.
 
 See TEST_REPORT.md for executed tests and the remaining real-device checks. SPECIFICATION.md contains the original handoff with current amendments marked at the top.
+
+## Tasks
+
+Tap **+ Add task** under Reid or Evan. Enter a title such as “Burn trash” and a base reward such as 15 minutes. Both parents see the same list. Tap **Complete** once: the app applies that child’s current grade multiplier, adds the exact earned time, records it in History, and removes the task. It does not start the timer automatically. The row shows the current earned reward, including any grade adjustment. The small × button removes a task without giving time and asks for confirmation.
+
+If both parents tap Complete together, only one transaction credits the task. If a task’s reward cannot be applied (for example, it would exceed the bank limit), the task stays on the list. Completion uses the grades at that moment, so grade edits after task creation affect its reward.
+
+The false grade-change error is fixed for existing saved grades; no grade deletion or data reset is needed. Update both devices to 1.3.0.

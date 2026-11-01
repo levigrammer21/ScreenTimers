@@ -1,6 +1,6 @@
-# Screen Timers 1.2.0 — validation
+# Screen Timers 1.3.0 — validation
 
-**29 automated tests passed:** 20 domain/service/startup tests, 3 access-rule tests, and 6 real direct-Firestore integration tests. The production app bundle build and source syntax checks passed.
+**38 automated tests passed:** 27 domain/service/startup tests, 3 access-rule tests, and 8 real direct-Firestore integration tests. The production app bundle build and source syntax checks passed.
 
 ## Executed direct-Firestore checks
 
@@ -30,3 +30,11 @@ There are no Cloud Functions, family codes, account allowlists, privileged backe
 ## Browser verification
 
 The production 1.2 bundle rendered its Google/email sign-in screen. An isolated test adapter (not delivered) opened the signed-in dashboard immediately, with no enrollment screen or sharing-code card. Awarding time and starting the timer worked in the UI; Settings showed appearance, open-app alerts, installation and account options, with no invitation controls. Real direct-Firestore integration uses the production adapter separately as described above.
+
+## Grade regression and tasks
+
+Reproduced the original false grade-change error with identical grades whose object keys appeared in a different order. The fix passes stable grade comparisons, legacy serialized snapshots, genuine-edit detection, and two real Firestore clients awarding time to Evan after grade round-trips.
+
+Task tests cover completion-time multipliers, atomic credit/removal, simultaneous completion from two identities, retry deduplication, deleting without credit, and retaining a task when the reward would overflow the bank. A retry after another parent’s later change returns the current bank.
+
+The browser’s isolated production-UI test added “Burn trash” with a 15-minute reward under Reid, completed it, verified 15 minutes in his bank, and verified the task disappeared. A simulated other-parent grade edit while Evan’s award sheet stayed open updated the preview to 45 minutes for a 60-minute base, and that preview committed without a false conflict. No test adapter or test data is included in the ZIP.
