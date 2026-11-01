@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function parent() { return request.auth != null && exists(/databases/$(database)/documents/config/household) && get(/databases/$(database)/documents/config/household).data.parentUids.size() == 2 && get(/databases/$(database)/documents/config/household).data.parentUids[0] != get(/databases/$(database)/documents/config/household).data.parentUids[1] && request.auth.uid in get(/databases/$(database)/documents/config/household).data.parentUids; }
+  match /children/{id} { allow read: if parent(); allow write: if false; }
+  match /history/{id} { allow read: if parent(); allow write: if false; }
+  match /users/{uid} {
+   allow read: if parent() && request.auth.uid == uid;
+   allow create, update: if parent() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['theme']) && request.resource.data.theme in ['light','dark','auto'];
+   match /devices/{id} {
+    allow read, delete: if parent() && request.auth.uid == uid;
+    allow create, update: if parent() && request.auth.uid == uid
+     && request.resource.data.keys().hasOnly(['token','enabled','preferences','appUrl'])
+     && request.resource.data.token is string && request.resource.data.token.size() < 4096
+     && request.resource.data.enabled is bool
+     && request.resource.data.appUrl is string && request.resource.data.appUrl.size() < 500 && request.resource.data.appUrl.matches('https://.*')
+     && request.resource.data.preferences.keys().hasOnly(['timerExpired','lockoutExpired','lockoutChanges','adjustments','grades','ownActions'])
+     && request.resource.data.preferences.timerExpired is bool && request.resource.data.preferences.lockoutExpired is bool
+     && request.resource.data.preferences.lockoutChanges is bool && request.resource.data.preferences.adjustments is bool
+     && request.resource.data.preferences.grades is bool && request.resource.data.preferences.ownActions is bool;
+   }
+  }
+  match /{document=**} { allow read, write: if false; }
+ }
+}

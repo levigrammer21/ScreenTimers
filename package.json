@@ -1,0 +1,26 @@
+{
+  "name": "screen-timers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "backend.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "test": "node --test domain.test.js service.test.js",
+    "build": "node build.js",
+    "deploy:backend": "firebase deploy --only firestore,functions --project screen-timers",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-screen-timers 'node --test rules.test.js integration.test.js'"
+  },
+  "dependencies": {
+    "firebase": "13.1.0",
+    "firebase-admin": "14.5.0",
+    "firebase-functions": "7.4.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "esbuild": "0.28.2",
+    "firebase-tools": "15.34.2"
+  }
+}

@@ -1,0 +1,5 @@
+export const firebaseConfig={apiKey:'AIzaSyAvHnUT8Xqb9WPs5RBHLs8cM7cyIKt4xW4',authDomain:'screen-timers.firebaseapp.com',projectId:'screen-timers',storageBucket:'screen-timers.firebasestorage.app',messagingSenderId:'300347806510',appId:'1:300347806510:web:5ef0c68baf2d212349a0bf'};
+export const region='us-central1';
+// Firebase console → Project settings → Cloud Messaging → Web Push certificates.
+// Optional: paste the PUBLIC VAPID key here to enable notifications.
+export const vapidKey='';
